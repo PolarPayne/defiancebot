@@ -36,14 +36,15 @@ class DefianceBot(bot.SingleServerIRCBot):
         elif cmd == "die":
             self.die()
         elif cmd == "stats":
-             c.notice(nick, "--- Channel statistics ---")
-             c.notice(nick, "Channel: " + chname)
-             users = sorted(chobj.users())
-             c.notice(nick, "Users: " + ", ".join(users))
-             opers = sorted(chobj.opers())
-             c.notice(nick, "Opers: " + ", ".join(opers))
-             voiced = sorted(chobj.voiced())
-             c.notice(nick, "Voiced: " + ", ".join(voiced))
+            for chname, chobj in self.channels.items():
+                c.notice(nick, "--- Channel statistics ---")
+                c.notice(nick, "Channel: " + chname)
+                users = sorted(chobj.users())
+                c.notice(nick, "Users: " + ", ".join(users))
+                opers = sorted(chobj.opers())
+                c.notice(nick, "Opers: " + ", ".join(opers))
+                voiced = sorted(chobj.voiced())
+                c.notice(nick, "Voiced: " + ", ".join(voiced))
         else:
             c.notice(nick, "Not understood: " + cmd)
 
