@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from defiance.bot import DefianceBot
 
 def main():
