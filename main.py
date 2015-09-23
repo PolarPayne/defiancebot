@@ -1,5 +1,3 @@
-from sets import Set
-
 class PlayerAmountException(Exception):
     pass
 
@@ -11,10 +9,10 @@ class Player:
 
 class Defiance:
     def __init__(self):
-        self.players = Set()
+        self.players = set()
 
     def join(self, nick):
-        self.players.add(Player(Nick))
+        self.players.add(Player(nick))
         if len(self.players) == 10:
             self.start()
         
@@ -25,7 +23,7 @@ class Defiance:
         if len(self.players) < 5:
             raise PlayerAmountException("Not enough players (min 5)")
         if len(self.players) > 10:
-            raise PlayerAmounrException("Too many players (max 5)")
+            raise PlayerAmounrException("Too many players (max 10)")
         
         #TODO random spies, place players in a "table"
     
