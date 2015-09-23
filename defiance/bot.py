@@ -1,16 +1,16 @@
-import irc.bot
-import irc.strings
+from irc import bot
+from irc import strings
 
-class DefianceBot(irc.bot.SingleServerIRCBot):
+class DefianceBot(bot.SingleServerIRCBot):
     
-    def __init__(self, channel):
-        super(DefianceBot, self).__init__([('irc.cs.hut.fi', 6667)], 'Matti Luukkainen', 'github.com/PolarPayne/DefianceBot', reconnection_interval=60, **params)
+    def __init__(self, channel, nick, server, port, **params):
+        super(DefianceBot, self).__init__([(server, port)], nick, 'github.com/PolarPayne/DefianceBot', reconnection_interval=60, **params)
         self.channel = channel
 
     def on_nicknameinuse(self, c, e):
         c.nick(c.get_nickname() + '_')
 
-    def on_welcome(c, e):
+    def on_welcome(self, c, e):
         c.join(self.channel)
 
     def on_privmsg(self, c, e):
@@ -18,7 +18,7 @@ class DefianceBot(irc.bot.SingleServerIRCBot):
 
     def on_pubmsg(self, c, e):
         a = e.arguments[0].split(":", 1)
-        if len(a) > 1 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
+        if len(a) > 1 and strings.lower(a[0]) == strings.lower(self.connection.get_nickname()):
             self.do_command(e, a[1].strip())
 
     def on_dccmsg(self, c, e):
@@ -33,9 +33,9 @@ class DefianceBot(irc.bot.SingleServerIRCBot):
 
         if cmd == "disconnect":
             self.disconnect()
-        elif cmd = "die":
+        elif cmd == "die":
             self.die()
-        elif cmd = "stats":
+        elif cmd == "stats":
              c.notice(nick, "--- Channel statistics ---")
              c.notice(nick, "Channel: " + chname)
              users = sorted(chobj.users())
