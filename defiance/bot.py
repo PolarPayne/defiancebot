@@ -7,13 +7,15 @@ class DefianceBot(bot.SingleServerIRCBot):
         super(DefianceBot, self).__init__([(server, port)], nick, 'github.com/PolarPayne/DefianceBot', reconnection_interval=60, **params)
         self.channel = channel
         self.participants = set()
+        self.game_in_progress = False
         self.paramless_commands = {
             'disconnect':self.disconnect,
             'die': self.die,
-            'participants': self.list_participants
+            'participants': self.list_participants,
+            'start':self.start_game,
+            'end':self.end_game
         }
         self.commands = {
-            'echo':self.echo,
             'hi':self.say_hi,
             'join': self.join_game
         }
@@ -55,19 +57,32 @@ class DefianceBot(bot.SingleServerIRCBot):
         human = Person.get_person(event)
         human.talk_to(connection, "hello!")
 
-    def echo(self, c, e):
-        pass
+    def start_game(self):
+        self.say_to_all(self.connection, 'Let the games begin! I will give each of you your roles in private')
+        for human in self.participants:
+            human.talk_to(self.connection, 'Guess what? You\'re a spy!')
+
+    def end_game(self):
+        winner = 'resistance' # game.winner or sth
+        self.game_in_progress = False
+        self.say_to_all(self.connection, 'The %s has won!' % (winner))
+        self.participants = []
 
     def join_game(self, c, e):
-        #TODO check if there is room in current game
+        # TODO check if there is room in current game
+        # TODO check if player is alrdy in game
         human = Person.get_person(e)
-        self.participants.add(human)
+        if self.game_in_progress:
+            human.talk_to(c, 'The game is in progress, cannot join')
+        else:
+            self.participants.add(human)
+            self.say_to_all(c, 'You are in the game. When ready command !start')
 
     def list_participants(self):
         if not self.participants:
             self.connection.privmsg(self.channel, "There are no participants")
         else:
-            players = ', '.join(map(lambda p:p.nick, participants))
+            players = ', '.join(map(lambda p:p.nick, self.participants))
             self.connection.privmsg(self.channel, players)
 
 
@@ -84,10 +99,10 @@ class DefianceBot(bot.SingleServerIRCBot):
             self.commands[cmd](c, e)
         else:
             reply = '%s: Syötit roskaa kutale!' % (nick) #shout-out to Putkamon
-            c.privmsg(self.channel, reply) 
+            c.privmsg(self.channel, reply)
 
 class Person(object):
-    '''A class to represent a person on the channel / in the game. 
+    '''A class to represent a person on the channel / in the game.
     Eventually, people will be identified better than by just comparing nicks'''
 
     @staticmethod
@@ -96,6 +111,7 @@ class Person(object):
 
     def __init__(self, nick):
         self.nick = nick
+        self.role = None
 
     def talk_to(self, connection, message):
         connection.privmsg(self.nick, message)
