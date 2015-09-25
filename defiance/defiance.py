@@ -1,7 +1,13 @@
 import random
+from enum import Enum
 
 class RuleException(Exception):
     pass
+
+class States(Enum):
+    NOT_STARTED = 0
+    TEAM_SELECTION = 1
+    TEAM_VOTE = 2
 
 class Player:
     def __init__(self, nick, spy=False, role=None):
@@ -33,16 +39,22 @@ missions = [{5:2, 6:2, 7:2, 8:3, 9:3, 10:3},
 class Defiance:
     def __init__(self):
         self.players = []
-        self.state = None
+        self.state = States.NOT_STARTED
         self.leader = None
+        self.team = []
+        self.votes = {}
 
     def add_player(self, nick):
+        if self.state is not States.NOT_STARTED:
+            raise RuleException("Wrong state.")
         for i in self.players:
             if i.nick == nick:
                 raise RuleException("Player {} already in game.".format(nick))
         self.players.append(Player(nick))
         
     def remove_player(self, nick):
+        if self.state is not States.NOT_STARTED:
+            raise RuleException("Wrong state.")
         for i in self.players:
             if i.nick == nick:
                 del self.players[i]
@@ -60,9 +72,11 @@ class Defiance:
             self.players[i].spy = True
         random.shuffle(self.players)
         self.leader = self.players[0]
-        self.state = (0,0)
+        self.state = States.TEAM_SELECTION
     
     def select_team(self, leader, team):
+        if self.state is not States.TEAM_SELECTION:
+            raise RuleException("Wrong state.")
         if self.leader != leader:
             raise RuleException("{}.nick is not the leader.".format(leader))
         if len(team) != len(list(set(team2))):
@@ -70,10 +84,31 @@ class Defiance:
         if len(team) != missions[self.state[0]][len(self.players)]:
             raise RuleException("Wrong number of team members.")
         self.team = team
+        self.state = States.TEAM_VOTE
 
-    def vote(self, nick, vote):
-        if nick not in self.votes:
-            self.votes = Vote(nick, 
+    def team_vote(self, nick, vote):
+        if self.state is not States.TEAM_VOTE:
+            raise RuleException("Wrong state.")
+        if nick not in self.players:
+            raise RuleException("{} is not a player in this game.".format(nick))
+        self.votes[nick] = vote
+     
+    def end_team_vote(self):
+        if self.state is not States.TEAM_VOTE:
+            raise RuleException("Wrong state.")
+        s = 0
+        for i in self.votes:
+            if i:
+                s += 1
+        #All players who didn't voted, voted approve
+        s += len(self.players) - len(self.votes)
+
+        if s > len(self.players) // 2:
+            state = States.MISSION
+        else:
+            self.votes = {}
+            self.team = None
+            self.state = States.TEAM_SELECTION
 
 if __name__ == "__main__":
     game = Defiance()
