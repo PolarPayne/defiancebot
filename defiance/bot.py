@@ -1,5 +1,6 @@
 from irc import bot
 from irc import strings
+from .print_helper import *
 
 class DefianceBot(bot.SingleServerIRCBot):
     
@@ -13,11 +14,14 @@ class DefianceBot(bot.SingleServerIRCBot):
             'die': self.die,
             'participants': self.list_participants,
             'start':self.start_game,
-            'end':self.end_game
+            'end':self.end_game,
+            'rainbow' : self.rainbow
         }
         self.commands = {
             'hi':self.say_hi,
-            'join': self.join_game
+            'join': self.join_game,
+            'leave': self.leave,
+            'quit': self.quit
         }
 
     def on_nicknameinuse(self, c, e):
@@ -43,15 +47,8 @@ class DefianceBot(bot.SingleServerIRCBot):
         if self.connection.get_nickname() in msg:
             c.privmsg(self.channel, "%s, you talkin' to me?" % (e.source.nick))
 
-    def on_dccmsg(self, c, e):
-        pass
-
-    def on_dccchat(self, c, e):
-        pass
-
-    def add_to_topic(self, connection):
-        for name, obj in self.channels.items():
-            c.privmsg(self.channel, obj.topic)
+    def set_topic(self, connection, topic):
+        connection.topic(topic)
 
     def say_hi(self, connection, event):
         human = Person.get_person(event)
@@ -60,23 +57,45 @@ class DefianceBot(bot.SingleServerIRCBot):
     def start_game(self):
         self.say_to_all(self.connection, 'Let the games begin! I will give each of you your roles in private')
         for human in self.participants:
-            human.talk_to(self.connection, 'Guess what? You\'re a spy!')
+            human.talk_to(self.connection, "Guess what? You're a spy!")
+
+        self.game_in_progress = True
+
+    def rainbow(self):
+        self.say_to_all(self.connection, '\x035RA\x038I\x033N\x032B\x036OW')
 
     def end_game(self):
         winner = 'resistance' # game.winner or sth
         self.game_in_progress = False
         self.say_to_all(self.connection, 'The %s has won!' % (winner))
-        self.participants = []
+        self.participants = set() 
 
     def join_game(self, c, e):
         # TODO check if there is room in current game
-        # TODO check if player is alrdy in game
         human = Person.get_person(e)
+        if human in self.participants:
+            human.talk_to(c, 'You are already in the game')
         if self.game_in_progress:
             human.talk_to(c, 'The game is in progress, cannot join')
         else:
             self.participants.add(human)
-            self.say_to_all(c, 'You are in the game. When ready command !start')
+            self.say_to_all(c, '%s: you are in the game. When ready command !start' % human.nick)
+
+    def leave(self, c, e):
+        human = Person.get_person(e)
+        if self.game_in_progress:
+            human.talk_to(c, 'Are you sure you want to leave an ongoing game? If so, command "quit"')
+        else:
+            self.participants.remove(human)
+            self.say_to_all(c, '%s has left the game' % (human.nick))
+
+    def quit(self, c, e):
+        human = Person.get_person(e)
+        if self.game_in_progress:
+            #TODO replace player with dummy
+            pass
+        self.participants.remove(human)
+        self.say_to_all(c, '%s has left the game' % (human.nick))
 
     def list_participants(self):
         if not self.participants:
@@ -84,7 +103,6 @@ class DefianceBot(bot.SingleServerIRCBot):
         else:
             players = ', '.join(map(lambda p:p.nick, self.participants))
             self.connection.privmsg(self.channel, players)
-
 
     def say_to_all(self, connection, message):
         connection.privmsg(self.channel, message)
@@ -112,6 +130,15 @@ class Person(object):
     def __init__(self, nick):
         self.nick = nick
         self.role = None
+
+    def __eq__(self, person):
+        # TODO switch to more accurate algorithm
+        if type(person) != type(self):
+            return False
+        return self.nick == person.nick
+
+    def __hash__(self):
+        return hash(self.nick)
 
     def talk_to(self, connection, message):
         connection.privmsg(self.nick, message)
