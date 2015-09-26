@@ -7,6 +7,7 @@ class DefianceBot(bot.SingleServerIRCBot):
     def __init__(self, channel, nick, server, port, **params):
         super(DefianceBot, self).__init__([(server, port)], nick, 'github.com/PolarPayne/DefianceBot', reconnection_interval=60, **params)
         self.channel = channel
+        #self.participants = set(list(map(lambda x:Person(x), ['Coolness', 'delma', 'Harrowed', 'Ankka', 'VoxWave'])))
         self.participants = set()
         self.game_in_progress = False
         self.paramless_commands = {
@@ -15,7 +16,8 @@ class DefianceBot(bot.SingleServerIRCBot):
             'participants': self.list_participants,
             'start':self.start_game,
             'end':self.end_game,
-            'rainbow' : self.rainbow
+            'rainbow' : self.rainbow,
+            'table': self.table
         }
         self.commands = {
             'hi':self.say_hi,
@@ -63,6 +65,11 @@ class DefianceBot(bot.SingleServerIRCBot):
 
     def rainbow(self):
         self.say_to_all(self.connection, '\x035RA\x038I\x033N\x032B\x036OW')
+
+    def table(self):
+        table = draw_table(list(map(lambda x : x.nick, self.participants))) 
+        for line in table:
+            self.say_to_all(self.connection, line)
 
     def end_game(self):
         winner = 'resistance' # game.winner or sth
