@@ -28,6 +28,8 @@ class Defiance:
         self.round_number = 0
         self.player_places = []
         self.vote_tracker = 0
+        self.current_mission = 0
+        self.mission = {}
 
     def add_player(self, nick):
         if self.state is not States.NOT_STARTED:
@@ -91,6 +93,7 @@ class Defiance:
         if s > len(self.players) // 2:
             state = States.MISSION
             self.vote_tracker = 0
+            self.votes = {}
         else:
             self.votes = {}
             self.team = None
@@ -98,6 +101,28 @@ class Defiance:
             self.state = States.TEAM_SELECTION
         if self.vote_tracker > 5:
             self.state = States.SPY_VICTORY
+
+    def play_mission(self, nick, play):
+        """False is failure, True is success."""
+        if self.state is not States.MISSION:
+            raise RuleException("Wrong state.")
+        if nick not in self.players:
+            raise RuleException("{} not in game.")
+        if nick not in self.team:
+            raise RuleException("{} not in the team.")
+        if not self.players[nick] and not play:
+            raise RuleException("A non spy must not play a failure.")
+        self.votes[nick] = play
+
+    def end_mission(self):
+        if self.state is not States.MISSION:
+            raise RuleException("Wrong state.")
+        if False in self.votes.values():
+            self.mission[self.current_mission] = False
+        else:
+            self.mission[self.current_mission] = True
+        self.current_mission += 1
+        self.state = States.TEAM_SELECTION
 
 if __name__ == "__main__":
     game = Defiance()
