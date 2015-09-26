@@ -8,6 +8,8 @@ class States(Enum):
     NOT_STARTED = 0
     TEAM_SELECTION = 1
     TEAM_VOTE = 2
+    SPY_VICTORY = 10
+    RESISTANCE_VICTORY = 11
 
 spies = {5:2, 6:2, 7:3, 8:3, 9:3, 10:4}
 missions = [{5:2, 6:2, 7:2, 8:3, 9:3, 10:3},
@@ -25,6 +27,7 @@ class Defiance:
         self.votes = {}
         self.round_number = 0
         self.player_places = []
+        self.vote_tracker = 0
 
     def add_player(self, nick):
         if self.state is not States.NOT_STARTED:
@@ -87,10 +90,14 @@ class Defiance:
 
         if s > len(self.players) // 2:
             state = States.MISSION
+            self.vote_tracker = 0
         else:
             self.votes = {}
             self.team = None
+            self.vote_tracker += 1
             self.state = States.TEAM_SELECTION
+        if self.vote_tracker > 5:
+            self.state = States.SPY_VICTORY
 
 if __name__ == "__main__":
     game = Defiance()
