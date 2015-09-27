@@ -1,13 +1,14 @@
 from irc import bot
 from irc import strings
 from .print_helper import *
+from .defiance import Defiance, RuleException
 
 class DefianceBot(bot.SingleServerIRCBot):
     
     def __init__(self, channel, nick, server, port, **params):
         super(DefianceBot, self).__init__([(server, port)], nick, 'github.com/PolarPayne/DefianceBot', reconnection_interval=60, **params)
         self.channel = channel
-        #self.participants = set(list(map(lambda x:Person(x), ['Coolness', 'delma', 'Harrowed', 'Ankka', 'VoxWave'])))
+        self.game = Defiance()
         self.participants = set()
         self.game_in_progress = False
         self.paramless_commands = {
@@ -17,13 +18,18 @@ class DefianceBot(bot.SingleServerIRCBot):
             'start':self.start_game,
             'end':self.end_game,
             'rainbow' : self.rainbow,
-            'table': self.table
+            'table': self.table,
+            'test':self.test,
+            'ldr': self.make_leader
         }
         self.commands = {
             'hi':self.say_hi,
             'join': self.join_game,
             'leave': self.leave,
-            'quit': self.quit
+            'quit': self.quit,
+            'team': self.select_team,
+            'approve': self._team_vote(True),
+            'reject': self._team_vote(False)
         }
 
     def on_nicknameinuse(self, c, e):
@@ -34,32 +40,36 @@ class DefianceBot(bot.SingleServerIRCBot):
 
     # connection, event
     def on_privmsg(self, c, e):
-        #self.do_command(e, e.arguments[0])
-        c.privmsg(e.source.nick, "echo: %s" % (e.arguments[0]))
-        #c.privmsg(self.channel, "delma on spy!")
+        self.do_command(e, e.arguments[0].split(' ')[0])
 
     def on_pubmsg(self, c, e):
-        #a = e.arguments[0].split(":", 1)
-        #if len(a) > 1 and strings.lower(a[0]) == strings.lower(self.connection.get_nickname()):
-        #   self.do_command(e, a[1].strip())
         msg = e.arguments[0]
         if msg[0] == '!':
-            cmd = msg[1:]
+            cmd = msg.split(' ')[0][1:]
             self.do_command(e, cmd)
         if self.connection.get_nickname() in msg:
             c.privmsg(self.channel, "%s, you talkin' to me?" % (e.source.nick))
 
-    def set_topic(self, connection, topic):
-        connection.topic(topic)
+    def set_topic(self, new_topic):
+        self.connection.topic(self.channel, new_topic)
 
     def say_hi(self, connection, event):
         human = Person.get_person(event)
         human.talk_to(connection, "hello!")
 
     def start_game(self):
+        try:
+            self.game.start()
+        except RuleException as ex:
+            self.say_to_all(self.connection, str(ex))
+            return
         self.say_to_all(self.connection, 'Let the games begin! I will give each of you your roles in private')
-        for human in self.participants:
-            human.talk_to(self.connection, "Guess what? You're a spy!")
+        self.table()
+        for player in self.game.player_places:
+            if self.game.players[player]: 
+                pass #human.talk_to(self.connection, "You're a spy!")
+            else:
+                pass #human.talk_to(self.connection, 'You are with the resistance')
 
         self.game_in_progress = True
 
@@ -67,26 +77,74 @@ class DefianceBot(bot.SingleServerIRCBot):
         self.say_to_all(self.connection, '\x035RA\x038I\x033N\x032B\x036OW')
 
     def table(self):
-        table = draw_table(list(map(lambda x : x.nick, self.participants))) 
+        players = self.game.player_places
+        if players is None:
+            return
+        table = draw_table(players) 
         for line in table:
+            line = self._show_colors(line+' ', players)
             self.say_to_all(self.connection, line)
+
+    def _show_colors(self, line, players):
+        for p in players:
+            if p not in line:
+                continue
+            if self.game.players[p]:
+                color = '\x035'
+            else:
+                color = '\x032'
+            reset = '\x03'
+            l,r = line.split(p) 
+            line = (l + color + p + reset + r)
+        return line
 
     def end_game(self):
         winner = 'resistance' # game.winner or sth
         self.game_in_progress = False
         self.say_to_all(self.connection, 'The %s has won!' % (winner))
         self.participants = set() 
+        del self.game
+        self.game = Defiance()
+
+    def test(self):
+        for name in ['paras', 'VoxWave', 'delma', 'someguy', 'spy', 'six', 'seven']:
+            self.game.add_player(name)
+
+    def make_leader(self):
+        self.game.leader = 'ZnO'
+        self.connection.privmsg(self.channel, 'Oukidouki!')
 
     def join_game(self, c, e):
-        # TODO check if there is room in current game
         human = Person.get_person(e)
-        if human in self.participants:
-            human.talk_to(c, 'You are already in the game')
-        if self.game_in_progress:
-            human.talk_to(c, 'The game is in progress, cannot join')
-        else:
+        try:
+            self.game.add_player(human.nick)
             self.participants.add(human)
-            self.say_to_all(c, '%s: you are in the game. When ready command !start' % human.nick)
+            msg = '{}: you are in the game.'.format(human.nick)
+            self.say_to_all(c, msg)
+            if len(self.participants) == 10:
+                self.start_game()
+        except RuleException as ex:
+            if str(ex) == 'Wrong state.':
+                human.talk_to(c, 'The game is in progress cannot join')
+            else:
+                human.talk_to(c, 'You are already in the game')
+
+    def select_team(self, c, e):
+        human = Person.get_person(e)
+        team_members = e.arguments[0].split(' ')[1:]
+        try:
+            self.game.select_team(human.nick, team_members)
+            team = ' '.join(team_members)
+            self.say_to_all(c, 'The suggested team is: {}'.format(team))
+            self.say_to_all(c, 'Please vote for approval or disproval of this team')
+        except RuleException as ex:
+            self.say_to_all(c, str(ex))
+
+    def _team_vote(self, approve):
+        def vote(c, e):
+            human = Person.get_person(e)
+            self.game.team_vote(human.nick, approve)
+        return vote
 
     def leave(self, c, e):
         human = Person.get_person(e)
@@ -99,17 +157,17 @@ class DefianceBot(bot.SingleServerIRCBot):
     def quit(self, c, e):
         human = Person.get_person(e)
         if self.game_in_progress:
-            #TODO replace player with dummy
             pass
         self.participants.remove(human)
         self.say_to_all(c, '%s has left the game' % (human.nick))
 
     def list_participants(self):
-        if not self.participants:
+        players = self.game.player_places
+        if not players:
             self.connection.privmsg(self.channel, "There are no participants")
         else:
-            players = ', '.join(map(lambda p:p.nick, self.participants))
-            self.connection.privmsg(self.channel, players)
+            output = ', '.join(map(lambda p:p.nick, players))
+            self.connection.privmsg(self.channel, output)
 
     def say_to_all(self, connection, message):
         connection.privmsg(self.channel, message)
