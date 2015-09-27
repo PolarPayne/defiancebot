@@ -1,5 +1,5 @@
 t = ['╔═════╗',  
-     '║ tkt ║',
+     '║ooooo║',
      '╚═════╝']
 
 def _top_or_bottom_row(maxlen, player, second_player = None):
@@ -14,7 +14,16 @@ def _table_row(i, maxlen, player1, player2):
     right_side = ('{:^'+str(maxlen+2)+'}').format(player2)
     return left_side + t[i] + right_side
 
-def draw_table(players):
+def _color_missions(missions):
+    if len(missions) > 5:
+        missions = missions[:5]
+    l = '║'
+    a = ''.join(map(lambda x : '\x032o' if x else '\x035o', missions)) + '\x03'
+    t[1] = l + a + 'o'*(5-len(missions)) + l
+
+def draw_table(players, missions = None):
+    if missions is not None:
+        _color_missions(missions)
     maxlen = len(max(players, key=len))
     if len(players) < 7:
         up_row = _top_or_bottom_row(maxlen, players[-1])
