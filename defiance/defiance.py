@@ -4,6 +4,9 @@ from enum import Enum
 class RuleException(Exception):
     pass
 
+class StateException(Exception):
+    pass
+
 class States(Enum):
     NOT_STARTED = 0
     TEAM_SELECTION = 1
@@ -17,6 +20,11 @@ missions = [{5:2, 6:2, 7:2, 8:3, 9:3, 10:3},
             {5:2, 6:4, 7:3, 8:4, 9:4, 10:4},
             {5:3, 6:3, 7:4, 8:5, 9:5, 10:5},
             {5:3, 6:4, 7:4, 8:5, 9:5, 10:5}]
+double_fail = [{5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
+	       {5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
+               {5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
+               {5:False, 6:False, 7:True, 8:True, 9:True, 10:True},
+               {5:False, 6:False, 7:False, 8:False, 9:False, 10:False}]
 
 class Defiance:
     def __init__(self):
@@ -117,7 +125,8 @@ class Defiance:
     def end_mission(self):
         if self.state is not States.MISSION:
             raise RuleException("Wrong state.")
-        if False in self.votes.values():
+        c = Counter(self.votes.values())
+	if (not double_fail[self.current_mission][len(self.players)] and c[False] > 0) or (double_fail[self.current_mission][len(self.players)] and c[False] > 1):
             self.mission[self.current_mission] = False
         else:
             self.mission[self.current_mission] = True
