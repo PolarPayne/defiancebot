@@ -1,11 +1,14 @@
 import random
 from enum import Enum
 
+
 class RuleException(Exception):
     pass
 
+
 class StateException(Exception):
     pass
+
 
 class States(Enum):
     NOT_STARTED = 0
@@ -22,10 +25,11 @@ missions = [{5:2, 6:2, 7:2, 8:3, 9:3, 10:3},
             {5:3, 6:3, 7:4, 8:5, 9:5, 10:5},
             {5:3, 6:4, 7:4, 8:5, 9:5, 10:5}]
 double_fail = [{5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
-	       {5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
+               {5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
                {5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
                {5:False, 6:False, 7:True, 8:True, 9:True, 10:True},
                {5:False, 6:False, 7:False, 8:False, 9:False, 10:False}]
+
 
 class Defiance:
     def __init__(self):
@@ -96,8 +100,11 @@ class Defiance:
         for i in self.votes:
             if i:
                 s += 1
-        #All players who didn't voted, voted approve
+        # All players who didn't voted, voted approve
         s += len(self.players) - len(self.votes)
+
+        if self.vote_tracker > 5:
+            self.state = States.SPY_VICTORY
 
         if s > len(self.players) // 2:
             state = States.MISSION
@@ -110,8 +117,6 @@ class Defiance:
             self.vote_tracker += 1
             self.state = States.TEAM_SELECTION
             return False
-        if self.vote_tracker > 5:
-            self.state = States.SPY_VICTORY
 
     def play_mission(self, nick, play):
         """False is failure, True is success."""
@@ -129,19 +134,19 @@ class Defiance:
         if self.state is not States.MISSION:
             raise RuleException("Wrong state.")
         c = Counter(self.votes.values())
-	if (not double_fail[self.current_mission][len(self.players)] and c[False] > 0) or (double_fail[self.current_mission][len(self.players)] and c[False] > 1):
+        if (not double_fail[self.current_mission][len(self.players)] and c[False] > 0) or (double_fail[self.current_mission][len(self.players)] and c[False] > 1):
             self.mission[self.current_mission] = False
         else:
             self.mission[self.current_mission] = True
 
-        #check for game end
+        # check for game end
         c = Counter(self.mission.values())
         if c[False] >= 3:
             self.state = States.SPY_VICTORY
         if c[True] >= 3:
             self.state = States.RESISTANCE_VICTORY
 
-	self.leader = self.next_leader()
+        self.leader = self.next_leader()
         self.current_mission += 1
         self.state = States.TEAM_SELECTION
 
