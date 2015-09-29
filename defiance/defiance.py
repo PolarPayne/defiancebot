@@ -11,6 +11,7 @@ class States(Enum):
     NOT_STARTED = 0
     TEAM_SELECTION = 1
     TEAM_VOTE = 2
+    MISSION = 3
     SPY_VICTORY = 10
     RESISTANCE_VICTORY = 11
 
@@ -102,11 +103,13 @@ class Defiance:
             state = States.MISSION
             self.vote_tracker = 0
             self.votes = {}
+            return True
         else:
             self.votes = {}
             self.team = None
             self.vote_tracker += 1
             self.state = States.TEAM_SELECTION
+            return False
         if self.vote_tracker > 5:
             self.state = States.SPY_VICTORY
 
@@ -130,8 +133,23 @@ class Defiance:
             self.mission[self.current_mission] = False
         else:
             self.mission[self.current_mission] = True
+
+        #check for game end
+        c = Counter(self.mission.values())
+        if c[False] >= 3:
+            self.state = States.SPY_VICTORY
+        if c[True] >= 3:
+            self.state = States.RESISTANCE_VICTORY
+
+	self.leader = self.next_leader()
         self.current_mission += 1
         self.state = States.TEAM_SELECTION
+
+    def next_leader(self):
+        if self.player_places.index(self.leader)+1 > len(self.player_places):
+            return self.player_places[0]
+        else:
+            return self.player_places[self.player_places.index(self.leader)+1]
 
 if __name__ == "__main__":
     game = Defiance()
