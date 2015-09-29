@@ -1,5 +1,6 @@
 import random
 from enum import Enum
+from collections import Counter
 
 
 class RuleException(Exception):
@@ -18,17 +19,18 @@ class States(Enum):
     SPY_VICTORY = 10
     RESISTANCE_VICTORY = 11
 
-spies = {5:2, 6:2, 7:3, 8:3, 9:3, 10:4}
-missions = [{5:2, 6:2, 7:2, 8:3, 9:3, 10:3},
-            {5:3, 6:3, 7:3, 8:4, 9:4, 10:4},
-            {5:2, 6:4, 7:3, 8:4, 9:4, 10:4},
-            {5:3, 6:3, 7:4, 8:5, 9:5, 10:5},
-            {5:3, 6:4, 7:4, 8:5, 9:5, 10:5}]
-double_fail = [{5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
-               {5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
-               {5:False, 6:False, 7:False, 8:False, 9:False, 10:False},
-               {5:False, 6:False, 7:True, 8:True, 9:True, 10:True},
-               {5:False, 6:False, 7:False, 8:False, 9:False, 10:False}]
+
+spies = {5: 2, 6: 2, 7: 3, 8: 3, 9: 3, 10: 4}
+missions = [{5: 2, 6: 2, 7: 2, 8: 3, 9: 3, 10: 3},
+            {5: 3, 6: 3, 7: 3, 8: 4, 9: 4, 10: 4},
+            {5: 2, 6: 4, 7: 3, 8: 4, 9: 4, 10: 4},
+            {5: 3, 6: 3, 7: 4, 8: 5, 9: 5, 10: 5},
+            {5: 3, 6: 4, 7: 4, 8: 5, 9: 5, 10: 5}]
+double_fail = [{5: False, 6: False, 7: False, 8: False, 9: False, 10: False},
+               {5: False, 6: False, 7: False, 8: False, 9: False, 10: False},
+               {5: False, 6: False, 7: False, 8: False, 9: False, 10: False},
+               {5: False, 6: False, 7: True, 8: True, 9: True, 10: True},
+               {5: False, 6: False, 7: False, 8: False, 9: False, 10: False}]
 
 
 class Defiance:
@@ -50,7 +52,7 @@ class Defiance:
         if nick in self.players:
             raise RuleException("{} is already in the game.".format(nick))
         self.players[nick] = False
-        
+
     def remove_player(self, nick):
         if self.state is not States.NOT_STARTED:
             raise RuleException("Wrong state.")
@@ -71,7 +73,7 @@ class Defiance:
         random.shuffle(self.player_places)
         self.leader = self.player_places[0]
         self.state = States.TEAM_SELECTION
-    
+
     def select_team(self, leader, team):
         if self.state is not States.TEAM_SELECTION:
             raise RuleException("Wrong state.")
@@ -92,7 +94,7 @@ class Defiance:
         if nick not in self.players:
             raise RuleException("{} is not a player in this game.".format(nick))
         self.votes[nick] = vote
-     
+
     def end_team_vote(self):
         if self.state is not States.TEAM_VOTE:
             raise RuleException("Wrong state.")
@@ -107,7 +109,7 @@ class Defiance:
             self.state = States.SPY_VICTORY
 
         if s > len(self.players) // 2:
-            state = States.MISSION
+            self.state = States.MISSION
             self.vote_tracker = 0
             self.votes = {}
             return True
@@ -134,7 +136,8 @@ class Defiance:
         if self.state is not States.MISSION:
             raise RuleException("Wrong state.")
         c = Counter(self.votes.values())
-        if (not double_fail[self.current_mission][len(self.players)] and c[False] > 0) or (double_fail[self.current_mission][len(self.players)] and c[False] > 1):
+        if (not double_fail[self.current_mission][len(self.players)] and c[False] > 0) or (
+                double_fail[self.current_mission][len(self.players)] and c[False] > 1):
             self.mission[self.current_mission] = False
         else:
             self.mission[self.current_mission] = True
@@ -151,15 +154,21 @@ class Defiance:
         self.state = States.TEAM_SELECTION
 
     def next_leader(self):
-        if self.player_places.index(self.leader)+1 > len(self.player_places):
+        if self.player_places.index(self.leader) + 1 > len(self.player_places):
             return self.player_places[0]
         else:
-            return self.player_places[self.player_places.index(self.leader)+1]
+            return self.player_places[self.player_places.index(self.leader) + 1]
+
 
 if __name__ == "__main__":
     game = Defiance()
     players = ["payne", "coolness", "zno", "delma", "voxwave", "harrowed", "serdion"]
     for i in players:
         game.add_player(i)
-    game.start()    
-    game.select_team(game.leader, ["töttöröö", "kissa"])
+    game.start()
+    game.select_team(game.leader, ["payne", "coolness"])
+    game.team_vote("payne", False)
+    game.end_team_vote()
+    game.play_mission(game.team[0], True)
+    game.end_mission()
+    print(game.mission)
