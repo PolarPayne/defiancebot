@@ -33,9 +33,23 @@ double_fail = [{5: False, 6: False, 7: False, 8: False, 9: False, 10: False},
                {5: False, 6: False, 7: False, 8: False, 9: False, 10: False}]
 
 
+class Player():
+    def __init__(self, nick, spy=False):
+        self.nick = nick
+        self.spy = spy
+
+    def __eq__(self, other):
+        if type(self) is not type(other):
+            if type(other) is str:
+                return self.nick == other
+            else:
+                return False
+        return self.nick == other.nick
+
+
 class Defiance:
     def __init__(self):
-        self.players = {}
+        self.players = []
         self.state = States.NOT_STARTED
         self.leader = None
         self.team = []
@@ -51,14 +65,14 @@ class Defiance:
             raise RuleException("Wrong state.")
         if nick in self.players:
             raise RuleException("{} is already in the game.".format(nick))
-        self.players[nick] = False
+        self.players.append(Player(nick))
 
     def remove_player(self, nick):
         if self.state is not States.NOT_STARTED:
             raise RuleException("Wrong state.")
         if nick not in self.players:
             raise RuleException("{} is not in the game, and cannot be removed.".format(nick))
-        del self.players[nick]
+        self.players.remove(nick)
 
     def start(self):
         if len(self.players) < 5:
@@ -162,13 +176,5 @@ class Defiance:
 
 if __name__ == "__main__":
     game = Defiance()
-    players = ["payne", "coolness", "zno", "delma", "voxwave", "harrowed", "serdion"]
-    for i in players:
-        game.add_player(i)
-    game.start()
-    game.select_team(game.leader, ["payne", "coolness"])
-    game.team_vote("payne", False)
-    game.end_team_vote()
-    game.play_mission(game.team[0], True)
-    game.end_mission()
-    print(game.mission)
+    game.add_player("payne")
+    game.remove_player("payne")
