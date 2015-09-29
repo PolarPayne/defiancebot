@@ -8,7 +8,12 @@ class RuleException(Exception):
 
 
 class StateException(Exception):
-    pass
+    def __init__(self, expected, actual):
+        self.expected = expected
+        self.actual = actual
+
+    def __str__(self):
+        return "State was {}, but it should have been {}.".format(self.actual, self.expected)
 
 
 class States(Enum):
@@ -47,48 +52,93 @@ class Player():
         return self.nick == other.nick
 
 
-class Defiance:
+class Table:
     def __init__(self):
         self.players = []
-        self.state = States.NOT_STARTED
         self.leader = None
-        self.team = []
-        self.votes = {}
-        self.round_number = 0
-        self.player_places = []
-        self.vote_tracker = 0
-        self.current_mission = 0
-        self.mission = {}
+        self.spies_selected = False
+        self.leader_selected = False
 
-    def add_player(self, nick):
-        if self.state is not States.NOT_STARTED:
-            raise RuleException("Wrong state.")
-        if nick in self.players:
-            raise RuleException("{} is already in the game.".format(nick))
-        self.players.append(Player(nick))
+    def add(self, nick):
+        if len(self) >= 10:
+            raise RuleException("There are already 10 players in this game.")
+        if nick in self:
+            raise RuleException("{} is already in this table.".format(nick))
+        self.players.append(nick)
+        self._shuffle()
 
-    def remove_player(self, nick):
-        if self.state is not States.NOT_STARTED:
-            raise RuleException("Wrong state.")
-        if nick not in self.players:
-            raise RuleException("{} is not in the game, and cannot be removed.".format(nick))
+    def remove(self, nick):
+        if nick not in self:
+            raise RuleException("{} is not in this table.".format(nick))
         self.players.remove(nick)
 
-    def start(self):
-        if len(self.players) < 5:
-            raise RuleException("Not enough players (min 5).")
-        if len(self.players) > 10:
-            raise RuleException("Too many players (max 10).")
+    def select_spies(self, mission):
+        if self.spies_selected:
+            raise RuntimeError("Spies were already selected.")
+        for i in random.sample(self.players, missions[mission][len(self.players)]):
+            i.spy = True
+        self.spies_selected = True
 
-        self.player_places = list(self.players.keys())
-        random.shuffle(self.player_places)
-        for i in range(spies[len(self.player_places)]):
-            self.players[self.player_places[i]] = True
-        random.shuffle(self.player_places)
-        self.leader = self.player_places[0]
+    def select_leader(self):
+        if self.leader_selected:
+            raise RuntimeError("Leader was already selected.")
+        self.leader = random.choice(self.players)
+        self.leader_selected = True
+
+    def _shuffle(self):
+        random.shuffle(self.players)
+
+    def __contains__(self, item):
+        return item in self.players
+
+    def __len__(self):
+        return len(self.players)
+
+
+class Mission:
+    def __init__(self):
+        pass
+
+
+class Board:
+    def __init__(self):
+        pass
+
+
+class Defiance:
+    def __init__(self):
+        self.state = States.NOT_STARTED
+        self.table = Table()
+        self.game_state = Board()
+
+    def check_state(self, expected):
+        if self.state is not expected:
+            raise StateException(expected, self.state)
+
+    def add_player(self, nick):
+        self.check_state(States.NOT_STARTED)
+        self.table.add(nick)
+
+    def remove_player(self, nick):
+        self.check_state(States.NOT_STARTED)
+        self.table.remove(nick)
+
+    def start(self):
+        self.check_state(States.NOT_STARTED)
+
+        if len(self.table) < 5:
+            raise RuleException("Not enough players (min 5).")
+
+        self.table.select_spies()
+        self.table.select_leader()
+
         self.state = States.TEAM_SELECTION
 
     def select_team(self, leader, team):
+        self.check_state(States.TEAM_SELECTION)
+
+        self.teams.add(self.table, team)
+
         if self.state is not States.TEAM_SELECTION:
             raise RuleException("Wrong state.")
         if self.leader != leader:
